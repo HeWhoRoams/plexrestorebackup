@@ -76,6 +76,7 @@ Create a new task:
     Settings: Allow task to be run on demand, stop if runs longer than a set time (optional).
 
 # Best Practices
+- I have this schedule to run early morning, once a week. 
 
 - 7-Zip Installation: Install 7-Zip to enable compression. The script falls back to uncompressed backups if not found.
 
