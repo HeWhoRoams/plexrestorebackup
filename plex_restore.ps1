@@ -1,105 +1,108 @@
-<#
-    Plex Restore Script (PowerShell + 7-Zip)
-    - Stops Plex cleanly (app or service)
-    - Restores the latest backup from backup folder
-    - Extracts 7-Zip archive if present
-    - Restarts Plex
-#>
+# ==================== Plex Backup Script (PowerShell + 7-Zip) ====================
+# - Stops Plex cleanly (app or service) based on kill_plex config
+# - Copies config to dated folder
+# - Compresses with 7-Zip if available
+# - Restarts Plex if Always_Restart_Plex = $true
+# - Logs all output to a file named with the same timestamp as the backup
+# ================================================================================
 
-# ---------------- Configuration ----------------
+$kill_plex = $false
+
 $BackupRoot = "D:\Plex_backup"
+$Timestamp  = Get-Date -Format "yyyy-MM-dd_HH-mm-ss"
+$TempBackupFolder = Join-Path $BackupRoot "PlexTemp_$Timestamp"
+$FinalArchive = Join-Path $BackupRoot "PlexBackup_$Timestamp.7z"
+$LogFile      = Join-Path $BackupRoot "PlexBackup_$Timestamp.log"
+
 $PlexDataFolder = "$env:LOCALAPPDATA\Plex Media Server"
-$PlexExePaths = @(
-    "$env:LOCALAPPDATA\Plex Media Server\Plex Media Server.exe",
-    "C:\Program Files\Plex\Plex Media Server\Plex Media Server.exe"
+$SevenZipPaths  = @(
+    "C:\Program Files\7-Zip\7z.exe",
+    "C:\Program Files (x86)\7-Zip\7z.exe"
 )
+
+$RetentionDays = 30
 $Always_Restart_Plex = $true
 
-Write-Host "=================== Starting Plex Restore ===================="
+# Redirect everything to log file
+Start-Transcript -Path $LogFile -Append
+
+Write-Host "=================== Starting Plex Backup ===================="
 
 # ---------------- Stop Plex (Service + App) ----------------
-Write-Host "Stopping Plex service (if installed)..."
-Stop-Service -Name "Plex Media Server" -Force -ErrorAction SilentlyContinue -Confirm:$false
+if ($kill_plex) {
+    Write-Host "Stopping Plex service (if installed)..."
+    Stop-Service -Name "Plex Media Server" -Force -ErrorAction SilentlyContinue -Confirm:$false
 
-Write-Host "Stopping all Plex-related processes..."
-function Stop-PlexProcesses {
-    $allPlex = Get-Process | Where-Object { $_.Name -like "Plex*" }
-    if ($allPlex) {
-        foreach ($proc in $allPlex) {
-            Write-Host "Stopping process $($proc.Name) (PID=$($proc.Id))"
-            Stop-Process -Id $proc.Id -Force -ErrorAction SilentlyContinue -Confirm:$false
+    Write-Host "Stopping all Plex-related processes..."
+    function Stop-PlexProcesses {
+        $allPlex = Get-Process | Where-Object { $_.Name -like "Plex*" }
+        if ($allPlex) {
+            foreach ($proc in $allPlex) {
+                Write-Host "Stopping process $($proc.Name) (PID=$($proc.Id))"
+                Stop-Process -Id $proc.Id -Force -ErrorAction SilentlyContinue -Confirm:$false
+            }
+        } else {
+            Write-Host "No Plex processes running."
         }
-    } else {
-        Write-Host "No Plex processes running."
     }
+
+    # First pass
+    Stop-PlexProcesses
+    Start-Sleep -Seconds 5
+
+    # Loop until all Plex processes are gone (max 3 tries)
+    $RetryLoop = 0
+    do {
+        $remaining = Get-Process | Where-Object { $_.Name -like "Plex*" }
+        if ($remaining) {
+            Write-Warning "Some Plex processes still running, retrying..."
+            Stop-PlexProcesses
+            Start-Sleep -Seconds 5
+        }
+        $RetryLoop++
+    } until (-not (Get-Process | Where-Object { $_.Name -like "Plex*" }) -or $RetryLoop -ge 3)
+} else {
+    Write-Host "kill_plex is set to FALSE. Skipping Plex shutdown."
 }
-Stop-PlexProcesses
-Start-Sleep -Seconds 5
 
-# ---------------- Locate Latest Backup ----------------
-$latestBackup = Get-ChildItem $BackupRoot -Include *.7z, *-registry.xml -File | 
-    Sort-Object LastWriteTime -Descending | Select-Object -First 1
-
-if (-not $latestBackup) {
-    Write-Error "No backups found in $BackupRoot"
+# ---------------- Copy data ----------------
+Write-Host "Copying Plex data to temp folder: $TempBackupFolder"
+robocopy $PlexDataFolder $TempBackupFolder /MIR /Z /R:3 /W:5 /XD "Cache" "Codecs"
+if ($LASTEXITCODE -ge 8) {
+    Write-Error "Robocopy failed with exit code $LASTEXITCODE"
+    Stop-Transcript
     exit 1
 }
 
-Write-Host "Latest backup found: $($latestBackup.FullName)"
-
-# ---------------- Restore Backup ----------------
-$TempRestoreFolder = Join-Path $BackupRoot "PlexRestoreTemp"
-if (Test-Path $TempRestoreFolder) { Remove-Item $TempRestoreFolder -Recurse -Force }
-
-# If backup is a 7z archive, extract it
-if ($latestBackup.Extension -eq ".7z") {
-    $SevenZipExe = @(
-        "C:\Program Files\7-Zip\7z.exe",
-        "C:\Program Files (x86)\7-Zip\7z.exe"
-    ) | Where-Object { Test-Path $_ } | Select-Object -First 1
-
-    if ($SevenZipExe) {
-        Write-Host "Extracting backup archive..."
-        & $SevenZipExe x $latestBackup.FullName "-o$TempRestoreFolder" -y
+# ---------------- Compress with 7-Zip ----------------
+$SevenZipExe = $SevenZipPaths | Where-Object { Test-Path $_ } | Select-Object -First 1
+if ($SevenZipExe) {
+    Write-Host "Compressing backup with 7-Zip..."
+    & $SevenZipExe a -t7z $FinalArchive "$TempBackupFolder*" -mx=9
+    if ($LASTEXITCODE -ne 0) {
+        Write-Warning "7-Zip compression failed. Keeping uncompressed folder."
     } else {
-        Write-Error "7-Zip not found, cannot extract archive."
-        exit 1
+        Write-Host "Compression complete. Removing temp folder..."
+        Remove-Item $TempBackupFolder -Recurse -Force
     }
 } else {
-    # If it's not an archive, assume a folder copy
-    Write-Host "Copying backup folder contents..."
-    Copy-Item -Path $latestBackup.FullName -Destination $TempRestoreFolder -Recurse -Force
+    Write-Warning "7-Zip not found. Keeping uncompressed backup folder."
 }
 
-# Copy restored data back to Plex data folder
-Write-Host "Restoring Plex configuration to $PlexDataFolder..."
-if (-not (Test-Path $PlexDataFolder)) { New-Item -ItemType Directory -Path $PlexDataFolder | Out-Null }
-Copy-Item -Path "$TempRestoreFolder\*" -Destination $PlexDataFolder -Recurse -Force
+# ---------------- Determine Plex executable ----------------
+$PlexExePathsToTry = @(
+    "C:\Program Files\Plex\Plex Media Server\Plex Media Server.exe",
+    "$env:LOCALAPPDATA\Plex Media Server\Plex Media Server.exe"
+)
 
-# Cleanup temp folder
-Remove-Item $TempRestoreFolder -Recurse -Force
-
-# ---------------- Restore Plex Registry ----------------
-$latestRegistry = Get-ChildItem $BackupRoot -Include *-registry.xml -File | 
-    Sort-Object LastWriteTime -Descending | Select-Object -First 1
-
-if ($latestRegistry) {
-    Write-Host "Restoring Plex registry settings..."
-    Import-Clixml -Path $latestRegistry.FullName | ForEach-Object {
-        $keyPath = $_.PSPath
-        foreach ($prop in $_.Property) {
-            Set-ItemProperty -Path $keyPath -Name $prop -Value $_.Value -Force
-        }
-    }
-} else {
-    Write-Warning "No registry backup found."
+$PlexExeToLaunch = $PlexExePathsToTry | Where-Object { Test-Path $_ } | Select-Object -First 1
+if (-not $PlexExeToLaunch) {
+    Write-Error "Cannot find Plex Media Server executable in known locations."
 }
 
 # ---------------- Restart Plex ----------------
-$PlexExeToLaunch = $PlexExePaths | Where-Object { Test-Path $_ } | Select-Object -First 1
-
 if ($Always_Restart_Plex) {
-    Write-Host "Attempting to restart Plex..."
+    Write-Host "Attempting to restart Plex (toggle enabled)..."
     $Retry = 0
     $Success = $false
 
@@ -112,11 +115,14 @@ if ($Always_Restart_Plex) {
             Start-Process -FilePath $PlexExeToLaunch -ArgumentList "--minimized" -WorkingDirectory (Split-Path $PlexExeToLaunch)
         }
 
-        Start-Sleep -Seconds 5
+        # Small delay to let filesystem and Plex settle
+        Start-Sleep -Seconds 10
 
+        # Check if any Plex process is running
         $RunningProcesses = Get-Process | Where-Object { $_.Name -like "Plex*" }
         if ($RunningProcesses) {
-            Write-Host "Plex successfully restarted."
+            Write-Host "Plex successfully restarted:"
+            $RunningProcesses | ForEach-Object { Write-Host "$($_.Name) (PID=$($_.Id))" }
             $Success = $true
             break
         } else {
@@ -126,10 +132,19 @@ if ($Always_Restart_Plex) {
     } until ($Retry -ge 2)
 
     if (-not $Success) {
-        Write-Error "CRITICAL: Plex failed to restart after restore!"
+        Write-Error "CRITICAL: Plex failed to restart after backup!"
     }
 } else {
     Write-Host "Always_Restart_Plex is set to FALSE. Skipping restart."
 }
 
-Write-Host "=================== Plex Restore Complete ===================="
+# ---------------- Retention cleanup ----------------
+Write-Host "Pruning backups older than $RetentionDays days..."
+$Cutoff = (Get-Date).AddDays(-$RetentionDays)
+Get-ChildItem $BackupRoot -Include *.7z -File |
+    Where-Object { $_.LastWriteTime -lt $Cutoff } |
+    Remove-Item -Force
+
+Write-Host "=================== Plex Backup Complete ===================="
+
+Stop-Transcript
