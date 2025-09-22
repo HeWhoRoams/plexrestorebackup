@@ -20,15 +20,16 @@ This PowerShell script performs **automated backups of Plex Media Server configu
 Edit the following variables at the top of the script:
 
 > [!NOTE]
-    $BackupRoot = "D:\Plex_backup"        # Folder where backups will be stored
-    $PlexDataFolder = "$env:LOCALAPPDATA\Plex Media Server"
-    $PlexExePath = "$env:LOCALAPPDATA\Plex Media Server\Plex Media Server.exe"
-    $SevenZipPaths = @(
-    "C:\Program Files\7-Zip\7z.exe",
-    "C:\Program Files (x86)\7-Zip\7z.exe"
-    )
-    $RetentionDays = 30                    # Number of days to keep old backups
-    $Always_Restart_Plex = $true           # Restart Plex after backup (true/false)
+> Configure the following variables in the script to match your setup
+*$BackupRoot = "D:\Plex_backup"        # Folder where backups will be stored
+*$PlexDataFolder = "$env:LOCALAPPDATA\Plex Media Server"
+*$PlexExePath = "$env:LOCALAPPDATA\Plex Media Server\Plex Media Server.exe"
+*$SevenZipPaths = @(
+        *"C:\Program Files\7-Zip\7z.exe",
+        *"C:\Program Files (x86)\7-Zip\7z.exe"
+        )
+        *$RetentionDays = 30                    # Number of days to keep old backups
+        *$Always_Restart_Plex = $true           # Restart Plex after backup (true/false)
 
 Ensure that $BackupRoot exists or the script will create it automatically.
 
