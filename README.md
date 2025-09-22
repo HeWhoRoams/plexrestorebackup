@@ -19,7 +19,6 @@ This PowerShell script performs **automated backups of Plex Media Server configu
 
 Edit the following variables at the top of the script:
 
-> [!NOTE]
 > Configure the following variables in the script to match your setup
 *$BackupRoot = "D:\Plex_backup"        # Folder where backups will be stored
 *$PlexDataFolder = "$env:LOCALAPPDATA\Plex Media Server"
