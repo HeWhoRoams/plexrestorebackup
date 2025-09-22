@@ -15,25 +15,29 @@ This PowerShell script performs **automated backups of Plex Media Server configu
 
 ---
 
-## Configuration
+# Configuration
 
 Edit the following variables at the top of the script:
 
-> Configure the following variables in the script to match your setup
+## Configure the following variables in the script to match your setup
 *$BackupRoot = "D:\Plex_backup"        # Folder where backups will be stored
+
 *$PlexDataFolder = "$env:LOCALAPPDATA\Plex Media Server"
+
 *$PlexExePath = "$env:LOCALAPPDATA\Plex Media Server\Plex Media Server.exe"
+
 *$SevenZipPaths = @(
         *"C:\Program Files\7-Zip\7z.exe",
         *"C:\Program Files (x86)\7-Zip\7z.exe"
         )
-        *$RetentionDays = 30                    # Number of days to keep old backups
-        *$Always_Restart_Plex = $true           # Restart Plex after backup (true/false)
+        
+ *$RetentionDays = 30                    # Number of days to keep old backups
+ *$Always_Restart_Plex = $true           # Restart Plex after backup (true/false)
 
 Ensure that $BackupRoot exists or the script will create it automatically.
 
 
-##Usage
+## Usage
 
 Open PowerShell as Administrator (required to stop/start services and kill processes).
 
@@ -43,7 +47,7 @@ Run the script manually:
 
  Check the console or the log file (if configured) to verify backup completion.
 
-##Setting Up a Scheduled Task (Windows)
+## Setting Up a Scheduled Task (Windows)
 
 To run this script automatically overnight:
 
@@ -71,20 +75,20 @@ Create a new task:
 
     Settings: Allow task to be run on demand, stop if runs longer than a set time (optional).
 
-##Best Practices
+# Best Practices
 
-    7-Zip Installation: Install 7-Zip to enable compression. The script falls back to uncompressed backups if not found.
+- 7-Zip Installation: Install 7-Zip to enable compression. The script falls back to uncompressed backups if not found.
 
-    Test First: Run the script manually before scheduling to ensure paths and permissions are correct.
+- Test First: Run the script manually before scheduling to ensure paths and permissions are correct.
 
-    Retention Policy: Adjust $RetentionDays to match available storage.
+- Retention Policy: Adjust $RetentionDays to match available storage.
 
-    Headless Operation: $Always_Restart_Plex = $true ensures Plex is back online after backup.
+- Headless Operation: $Always_Restart_Plex = $true ensures Plex is back online after backup.
 
-    Monitoring: Consider redirecting output to a log file for automated monitoring:
+- Monitoring: Consider redirecting output to a log file for automated monitoring:
 
-    .\plex_backup.ps1 *> "D:\Plex_backup\PlexBackupLog.txt"
+- .\plex_backup.ps1 *> "D:\Plex_backup\PlexBackupLog.txt"
 
-##License
+# License
 
 This script is provided as-is for personal use. Modify and redistribute freely, but use at your own risk.
