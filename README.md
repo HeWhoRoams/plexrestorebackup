@@ -20,36 +20,36 @@ This PowerShell script performs **automated backups of Plex Media Server configu
 Edit the following variables at the top of the script:
 
 powershell
-$BackupRoot = "D:\Plex_backup"        # Folder where backups will be stored
-$PlexDataFolder = "$env:LOCALAPPDATA\Plex Media Server"
-$PlexExePath = "$env:LOCALAPPDATA\Plex Media Server\Plex Media Server.exe"
-$SevenZipPaths = @(
+    $BackupRoot = "D:\Plex_backup"        # Folder where backups will be stored
+    $PlexDataFolder = "$env:LOCALAPPDATA\Plex Media Server"
+    $PlexExePath = "$env:LOCALAPPDATA\Plex Media Server\Plex Media Server.exe"
+    $SevenZipPaths = @(
     "C:\Program Files\7-Zip\7z.exe",
     "C:\Program Files (x86)\7-Zip\7z.exe"
-)
-$RetentionDays = 30                    # Number of days to keep old backups
-$Always_Restart_Plex = $true           # Restart Plex after backup (true/false)
+    )
+    $RetentionDays = 30                    # Number of days to keep old backups
+    $Always_Restart_Plex = $true           # Restart Plex after backup (true/false)
 
-    Ensure that $BackupRoot exists or the script will create it automatically.
-/
+Ensure that $BackupRoot exists or the script will create it automatically.
+
 
 ##Usage
 
-    Open PowerShell as Administrator (required to stop/start services and kill processes).
+Open PowerShell as Administrator (required to stop/start services and kill processes).
 
-    Run the script manually:
+Run the script manually:
 
-.\plex_backup.ps1
+    .\plex_backup.ps1
 
-    Check the console or the log file (if configured) to verify backup completion.
+ Check the console or the log file (if configured) to verify backup completion.
 
 ##Setting Up a Scheduled Task (Windows)
 
 To run this script automatically overnight:
 
-    Open Task Scheduler.
+ Open Task Scheduler.
 
-    Create a new task:
+Create a new task:
 
         Name: Plex Backup
 
