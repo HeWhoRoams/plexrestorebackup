@@ -29,3 +29,11 @@ $SevenZipPaths = @(
 )
 $RetentionDays = 30                    # Number of days to keep old backups
 $Always_Restart_Plex = $true           # Restart Plex after backup (true/false)
+
+
+Usage
+
+Open PowerShell as Administrator (required to stop/start services and kill processes).
+.\plex_backup.ps1
+
+Run the script manually:
